@@ -36,7 +36,7 @@ from monai.transforms import (
     RandFlipd,
     RandAffined,
     RandAdjustContrastd,
-    RandGaussianNoised,
+    RandGaussianNoised,Resized,
     ToTensord,ScaleIntensityRanged
 )
 
@@ -197,6 +197,7 @@ class RSNADataset3DFinal(Dataset):
         
         # --- load volume + metadata
         vol = np.load(row["volume_path"]).astype(np.float32)  #/ 255.0
+#        print (vol.shape)
         with open(row["metadata_path"], 'r') as f:
             metadata = json.load(f)
         
@@ -214,11 +215,12 @@ class RSNADataset3DFinal(Dataset):
 
         # --- choose normalization strategy
         if modality == "CT":
-            # fixed HU window
-            a_min, a_max = 0.12, 600
-        elif modality == "MR":
-            # per-volume percentiles (robust to scanner differences)
-            a_min, a_max = 0.0 , 221.77
+            a_min, a_max = -1000, 600   # HU window
+        elif modality in ["MR", "MRA"]:
+            lo, hi = np.percentile(vol, [0.5, 99.5])
+            a_min, a_max = float(lo), float(hi)
+        else:
+            a_min, a_max = float(vol.min()), float(vol.max())
 
 
         data = {"image": vol} 
@@ -249,6 +251,7 @@ class RSNADataset3DFinal(Dataset):
         
         return img, meta, labels
 
+INPUT_SHAPE   = (CFG.num_slices_sample, CFG.image_size, CFG.image_size)
 
 # ==========================================================
 # === 4. DEFINE TRANSFORMS =================================
